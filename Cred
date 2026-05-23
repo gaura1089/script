@@ -1,1 +1,13 @@
 $Cred | Export-Clixml "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Creds\ExchangeCred.xml"
+
+
+
+NoidaP1-  OU=Users,OU=RestofCoforge,OU=GreaterNoidaP1,DC=IN,DC=COFORGETECH,DC=COM
+
+NoidaP2-   OU=Users,OU=RestofCoforge,OU=GreaterNoidaP2,DC=IN,DC=COFORGETECH,DC=COM
+
+Gurgaon-  OU=Users,OU=RestofCoforge,OU=Gurugram,DC=IN,DC=COFORGETECH,DC=COM
+
+Hydrabad-  OU=Users,OU=RestofCoforge,OU=Hyderabad,DC=IN,DC=COFORGETECH,DC=COM
+
+Banluru -  OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM
