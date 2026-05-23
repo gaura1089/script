@@ -1,0 +1,47 @@
+$QueuePath = "$env:OneDrive\Documents\HR_Automation\Queue"
+
+$ProcessedPath = "$QueuePath\Processed"
+
+Write-Host "Watching folder: $QueuePath"
+
+while ($true) {
+
+    $Files = Get-ChildItem "$QueuePath\*.json" -ErrorAction SilentlyContinue
+
+    foreach ($File in $Files) {
+
+        try {
+
+            Write-Host "Processing: $($File.Name)"
+
+            $Data = Get-Content $File.FullName | ConvertFrom-Json
+
+            $FirstName   = $Data.FirstName
+            $LastName    = $Data.LastName
+            $DisplayName = $Data.DisplayName
+            $OU          = $Data.OU
+
+            Write-Host "Creating mailbox for $DisplayName"
+
+            powershell.exe -ExecutionPolicy Bypass -File "C:\Users\$env:USERNAME\OneDrive\Documents\HR_Automation\Scripts\CreateUser.ps1" `
+                -Mode Single `
+                -FirstName $FirstName `
+                -LastName $LastName `
+                -DisplayName $DisplayName `
+                -OU $OU
+
+            Move-Item $File.FullName "$ProcessedPath\$($File.Name)" -Force
+
+            Write-Host "Completed: $DisplayName"
+
+        }
+        catch {
+
+            Write-Host "Failed: $_"
+
+        }
+
+    }
+
+    Start-Sleep -Seconds 10
+}
