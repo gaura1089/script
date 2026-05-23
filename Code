@@ -1,4 +1,4 @@
-$QueuePath = "$env:OneDrive\Documents\HR_Automation\Queue"
+$QueuePath = "$env:C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
 
 $ProcessedPath = "$QueuePath\Processed"
 
@@ -23,7 +23,7 @@ while ($true) {
 
             Write-Host "Creating mailbox for $DisplayName"
 
-            powershell.exe -ExecutionPolicy Bypass -File "C:\Users\$env:USERNAME\OneDrive\Documents\HR_Automation\Scripts\CreateUser.ps1" `
+            powershell.exe -ExecutionPolicy Bypass -File "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue\Scripts\CreateUser.ps1" `
                 -Mode Single `
                 -FirstName $FirstName `
                 -LastName $LastName `
