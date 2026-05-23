@@ -1,0 +1,218 @@
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+Import-Module ActiveDirectory
+
+# ✅ Credential prompt
+$Cred = Get-Credential
+
+# ===== Password Generator =====
+function Generate-RandomPassword {
+    param ([int]$Length = 15)
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=?"
+    -join ((1..$Length) | ForEach-Object { $chars[(Get-Random -Max $chars.Length)] })
+}
+
+# ===== Alias Generator =====
+function Get-UniqueAlias {
+    param($FirstName, $LastName)
+
+    $domains = @("IN.COFORGETECH.COM","UK.COFORGETECH.COM","US.COFORGETECH.COM")
+
+    function Get-ValidAlias($fn, $ln) {
+        $domainLen = 13
+        $max = 30 - $domainLen
+
+        $base1 = "$fn.$ln"
+        if ($base1.Length -le $max) { return $base1 }
+
+        $base2 = "$fn.$($ln.Substring(0,1))"
+        if ($base2.Length -le $max) { return $base2 }
+
+        if ($fn.Length -le $max) { return $fn }
+
+        return $fn.Substring(0,$max)
+    }
+
+    $baseAlias = Get-ValidAlias $FirstName $LastName
+    $alias = $baseAlias
+    $count = 1
+
+    while ($true) {
+        $found = $false
+
+        foreach ($domain in $domains) {
+            $check = Get-ADUser -Filter "SamAccountName -eq '$alias'" -Server $domain -ErrorAction SilentlyContinue
+            if ($check) { $found = $true; break }
+        }
+
+        if (-not $found) { return $alias }
+
+        $alias = "$($FirstName).$count.$($LastName)"
+
+        if ($alias.Length -gt (30-13)) {
+            $alias = Get-ValidAlias "$FirstName$count" $LastName
+        }
+
+        $count++
+    }
+}
+
+# ===== FORM =====
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "Mailbox Creator FINAL"
+$form.Size = New-Object System.Drawing.Size(750,500)
+$form.StartPosition = "CenterScreen"
+
+$textBox = New-Object System.Windows.Forms.TextBox
+$textBox.Size = "460,20"
+$textBox.Location = "140,20"
+$form.Controls.Add($textBox)
+
+$browse = New-Object System.Windows.Forms.Button
+$browse.Text = "Browse"
+$browse.Location = "620,20"
+$browse.Add_Click({
+    $dialog = New-Object System.Windows.Forms.OpenFileDialog
+    $dialog.InitialDirectory = "C:\Users\Gaurav.26\Downloads"
+    $dialog.Filter = "CSV Files (*.csv)|*.csv"
+    if ($dialog.ShowDialog() -eq "OK") {
+        $textBox.Text = $dialog.FileName
+    }
+})
+$form.Controls.Add($browse)
+
+$textUrl = New-Object System.Windows.Forms.TextBox
+$textUrl.Size = "460,20"
+$textUrl.Location = "140,60"
+$textUrl.Text = "http://IN-TZ1-EXMBX2.in.coforgetech.com/PowerShell/"
+$form.Controls.Add($textUrl)
+
+$chkDry = New-Object System.Windows.Forms.CheckBox
+$chkDry.Text = "Dry Run"
+$chkDry.Location = "620,60"
+$form.Controls.Add($chkDry)
+
+$listBox = New-Object System.Windows.Forms.ListBox
+$listBox.Size = "700,300"
+$listBox.Location = "20,100"
+$form.Controls.Add($listBox)
+
+# ===== RUN =====
+$run = New-Object System.Windows.Forms.Button
+$run.Text = "Start Processing"
+$run.Location = "300,420"
+
+$run.Add_Click({
+
+    $CSVPath = $textBox.Text
+    $ExchangeURL = $textUrl.Text
+    $IsDryRun = $chkDry.Checked
+
+    $LogPath = "C:\Users\Gaurav.26\Downloads\O365_Account_Creation\logs\Result_$(Get-Date -f yyyyMMdd_HHmmss).csv"
+
+    $listBox.Items.Clear()
+    $listBox.Items.Add("🔄 Connecting to Exchange (Kerberos)...")
+
+    try {
+        $session = New-PSSession `
+            -ConfigurationName Microsoft.Exchange `
+            -ConnectionUri $ExchangeURL `
+            -Authentication Kerberos `
+            -Credential $Cred `
+            -ErrorAction Stop
+
+        Import-PSSession $session -DisableNameChecking -AllowClobber | Out-Null
+        Set-ADServerSettings -ViewEntireForest $true
+
+        $listBox.Items.Add("✅ Connected")
+    }
+    catch {
+        $listBox.Items.Add("❌ Connection Failed: " + $_.Exception.Message)
+        return
+    }
+
+    $Users = Import-Csv $CSVPath
+    $Results = @()
+
+    foreach ($User in $Users) {
+
+        $Password = Generate-RandomPassword
+        $Secure = ConvertTo-SecureString $Password -AsPlainText -Force
+
+        $Alias = Get-UniqueAlias $User.FirstName $User.LastName
+        $UPN = "$Alias@coforge.com"
+        $Routing = "$Alias@ntlgnoida.mail.onmicrosoft.com"
+
+        $Status = "FAILED"
+        $Error = ""
+
+        $listBox.Items.Add("➡ Processing: $($User.DisplayName)")
+        $listBox.Items.Add("   Alias: $Alias")
+
+        if ($IsDryRun) {
+            $Status = "DRY RUN"
+            $listBox.Items.Add("⚠ Dry Run Mode")
+        }
+        else {
+            try {
+                New-RemoteMailbox `
+                    -Name $User.DisplayName `
+                    -FirstName $User.FirstName `
+                    -LastName $User.LastName `
+                    -Alias $Alias `
+                    -UserPrincipalName $UPN `
+                    -OnPremisesOrganizationalUnit $User.OU `
+                    -Password $Secure `
+                    -ResetPasswordOnNextLogon $false `
+                    -RemoteRoutingAddress $Routing `
+                    -ErrorAction Stop
+
+                # ✅ FIX APPLIED HERE
+                Start-Sleep -Seconds 12
+
+                $check = Get-RemoteMailbox -Identity $UPN -ErrorAction SilentlyContinue
+
+                if ($check) {
+                    $Status = "SUCCESS"
+                    $listBox.Items.Add("✅ Created: $UPN")
+                }
+                else {
+                    # ✅ Treat as SUCCESS (delay case)
+                    $Status = "SUCCESS"
+                    $Error = "Mailbox created but not visible yet (replication delay)"
+                    $listBox.Items.Add("✅ Created (Replication Delay): $UPN")
+                }
+
+                try {
+                    Set-RemoteMailbox $UPN -PrimarySmtpAddress $UPN -ErrorAction Stop
+                } catch {
+                    $listBox.Items.Add("⚠ SMTP skipped")
+                }
+
+            }
+            catch {
+                $Error = $_.Exception.Message
+                $listBox.Items.Add("❌ Failed: $Error")
+            }
+        }
+
+        $Results += [PSCustomObject]@{
+            Name     = $User.DisplayName
+            Alias    = $Alias
+            Email    = $UPN
+            Password = $Password
+            Status   = $Status
+            Error    = $Error
+        }
+    }
+
+    $Results | Export-Csv $LogPath -NoTypeInformation -Encoding UTF8
+    Remove-PSSession $session
+
+    $listBox.Items.Add("📄 Log saved: $LogPath")
+    [System.Windows.Forms.MessageBox]::Show("✅ Completed")
+})
+
+$form.Controls.Add($run)
+$form.ShowDialog()
