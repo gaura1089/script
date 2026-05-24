@@ -31,3 +31,10 @@ Repeat: Until: Time:                  None
 Repeat: Until: Duration:              Disabled
 Repeat: Stop If Still Running:        Disabled
 PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts>
+
+
+-ExecutionPolicy Bypass -File "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\Watcher.ps1"
+
+
+
+C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts
