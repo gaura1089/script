@@ -465,3 +465,233 @@ while ($true) {
 
     Start-Sleep -Seconds 5
 }
+
+
+
+
++++++++++++
+
+
+
+
+# =========================================
+# WATCHER.PS1
+# FINAL STABLE VERSION
+# =========================================
+
+$QueueFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+
+$ProcessedFolder = "$QueueFolder\Processed"
+
+$CreateUserScript = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\CreateUser.ps1"
+
+# =========================================
+# CREATE PROCESSED FOLDER
+# =========================================
+
+if (!(Test-Path $ProcessedFolder)) {
+
+    New-Item `
+        -ItemType Directory `
+        -Path $ProcessedFolder | Out-Null
+}
+
+# =========================================
+# START WATCHER
+# =========================================
+
+Clear-Host
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "CHECKING QUEUE FOLDER"
+Write-Host "========================================="
+Write-Host ""
+
+# =========================================
+# GET JSON FILES
+# =========================================
+
+$Files = Get-ChildItem `
+    -Path $QueueFolder `
+    -Filter *.json `
+    -File `
+    -ErrorAction SilentlyContinue
+
+# =========================================
+# NO FILE FOUND
+# =========================================
+
+if ($Files.Count -eq 0) {
+
+    Write-Host "NO PENDING REQUEST FOUND..."
+
+    Write-Host ""
+    Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..."
+
+    Start-Sleep -Seconds 10
+
+    exit
+}
+
+# =========================================
+# PROCESS EACH FILE
+# =========================================
+
+foreach ($File in $Files) {
+
+    try {
+
+        Clear-Host
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "PROCESSING FILE"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "File Name : $($File.Name)"
+
+        # =========================================
+        # READ JSON
+        # =========================================
+
+        $JsonData = Get-Content `
+            $File.FullName `
+            -Raw | ConvertFrom-Json
+
+        $FirstName   = $JsonData.FirstName
+        $LastName    = $JsonData.LastName
+        $DisplayName = $JsonData.DisplayName
+        $OU          = $JsonData.SelectOU
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "USER DETAILS"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "First Name  : $FirstName"
+        Write-Host "Last Name   : $LastName"
+        Write-Host "DisplayName : $DisplayName"
+        Write-Host "OU          : $OU"
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "STARTING MAILBOX CREATION"
+        Write-Host "========================================="
+        Write-Host ""
+
+        # =========================================
+        # RUN CREATEUSER.PS1
+        # =========================================
+
+        powershell.exe `
+            -NoProfile `
+            -ExecutionPolicy Bypass `
+            -File $CreateUserScript `
+            -Mode "Single" `
+            -FirstName $FirstName `
+            -LastName $LastName `
+            -DisplayName $DisplayName `
+            -OU $OU
+
+        # =========================================
+        # CHECK LOG FILES
+        # =========================================
+
+        $SafeName = $DisplayName.Replace(" ","_")
+
+        $LogFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Logs"
+
+        $SuccessLog = "$LogFolder\$SafeName.csv"
+
+        $ErrorLog = "$LogFolder\$SafeName`_ERROR.csv"
+
+        if (Test-Path $SuccessLog) {
+
+            Write-Host ""
+            Write-Host "========================================="
+            Write-Host "MAILBOX CREATED SUCCESSFULLY"
+            Write-Host "========================================="
+            Write-Host ""
+
+            Write-Host "Success Log Found:"
+            Write-Host $SuccessLog
+        }
+        elseif (Test-Path $ErrorLog) {
+
+            Write-Host ""
+            Write-Host "========================================="
+            Write-Host "MAILBOX CREATION FAILED"
+            Write-Host "========================================="
+            Write-Host ""
+
+            Write-Host "Error Log Found:"
+            Write-Host $ErrorLog
+        }
+        else {
+
+            Write-Host ""
+            Write-Host "========================================="
+            Write-Host "NO LOG FILE FOUND"
+            Write-Host "========================================="
+            Write-Host ""
+        }
+
+        # =========================================
+        # MOVE JSON TO PROCESSED
+        # =========================================
+
+        $Destination = Join-Path `
+            $ProcessedFolder `
+            $File.Name
+
+        Move-Item `
+            -Path $File.FullName `
+            -Destination $Destination `
+            -Force
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "JSON MOVED TO PROCESSED"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host $Destination
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "PROCESS COMPLETED"
+        Write-Host "========================================="
+        Write-Host ""
+
+    }
+
+    catch {
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "WATCHER ERROR"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host $_.Exception.Message
+
+        Write-Host ""
+        Write-Host "WINDOW WILL CLOSE IN 3 MINUTES"
+
+        Start-Sleep -Seconds 180
+    }
+}
+
+# =========================================
+# CLOSE WATCHER
+# =========================================
+
+Write-Host ""
+Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..."
+
+Start-Sleep -Seconds 10
+
+exit
