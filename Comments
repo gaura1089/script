@@ -75,7 +75,12 @@ HR Automation System
 
 
 
+Write-Host ""
+Write-Host "PROCESS COMPLETED"
 
+Start-Sleep -Seconds 5
+
+exit
 
 
 
