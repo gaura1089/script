@@ -7,4 +7,19 @@ Connecting to Exchange...
 
 Connected Successfully
 Invalid Mode
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> -Mode Single
+-Mode: The term '-Mode' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> -FirstName Coforge
+-FirstName: The term '-FirstName' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> -Lastname NPM
+-Lastname: The term '-Lastname' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> -Displayname "Coforge NPM"
+-Displayname: The term '-Displayname' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> -OU NoidaP1
+-OU: The term '-OU' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
 PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts>
