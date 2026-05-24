@@ -1,0 +1,33 @@
+
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts> schtasks /query /tn "HR Mailbox Automation" /v /fo list
+
+Folder: \
+HostName:                             LAP-TZ-0X107072
+TaskName:                             \HR Mailbox Automation
+Next Run Time:                        24-05-2026 16:49:55
+Status:                               Ready
+Logon Mode:                           Interactive only
+Last Run Time:                        24-05-2026 16:47:42
+Last Result:                          0
+Author:                               INCOFORGETECH\RavCfg
+Task To Run:                          "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\Watcher.ps1"
+Start In:                             N/A
+Comment:                              N/A
+Scheduled Task State:                 Enabled
+Idle Time:                            Disabled
+Power Management:                     Stop On Battery Mode
+Run As User:                          Gaurav.26
+Delete Task If Not Rescheduled:       Disabled
+Stop Task If Runs X Hours and X Mins: Disabled
+Schedule:                             Scheduling data is not available in this format.
+Schedule Type:                        Daily
+Start Time:                           16:39:55
+Start Date:                           24-05-2026
+End Date:                             N/A
+Days:                                 Every 1 day(s)
+Months:                               N/A
+Repeat: Every:                        0 Hour(s), 5 Minute(s)
+Repeat: Until: Time:                  None
+Repeat: Until: Duration:              Disabled
+Repeat: Stop If Still Running:        Disabled
+PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts>
