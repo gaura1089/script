@@ -141,3 +141,102 @@ Write-Host "========================================="
 Write-Host ""
 
 Start-Sleep -Seconds 5
+
+
+
+
+
+
+
+
+$QueuePath = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+
+$ProcessedPath = "$QueuePath\Processed"
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "CHECKING QUEUE FOLDER"
+Write-Host "========================================="
+Write-Host ""
+
+# =========================================
+# GET ALL JSON FILES
+# =========================================
+
+$Files = Get-ChildItem "$QueuePath\*.json" -ErrorAction SilentlyContinue
+
+foreach ($File in $Files) {
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "PROCESSING FILE"
+    Write-Host "========================================="
+    Write-Host ""
+
+    Write-Host "File Name : $($File.Name)"
+
+    # =========================================
+    # READ JSON FILE
+    # =========================================
+
+    $Data = Get-Content $File.FullName | ConvertFrom-Json
+
+    $FirstName   = $Data.FirstName
+    $LastName    = $Data.LastName
+    $DisplayName = $Data.DisplayName
+    $OU          = $Data.OU
+
+    # =========================================
+    # SHOW USER DETAILS
+    # =========================================
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "USER DETAILS"
+    Write-Host "========================================="
+    Write-Host ""
+
+    Write-Host "First Name   : $FirstName"
+    Write-Host "Last Name    : $LastName"
+    Write-Host "Display Name : $DisplayName"
+    Write-Host "OU           : $OU"
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "STARTING MAILBOX CREATION"
+    Write-Host "========================================="
+    Write-Host ""
+
+    # =========================================
+    # START CREATEUSER.PS1
+    # =========================================
+
+    Start-Process powershell.exe `
+        -Wait `
+        -ArgumentList "-NoExit -ExecutionPolicy Bypass -File `"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\CreateUser.ps1`" -Mode Single -FirstName `"$FirstName`" -LastName `"$LastName`" -DisplayName `"$DisplayName`" -OU `"$OU`""
+
+    # =========================================
+    # MOVE FILE TO PROCESSED
+    # =========================================
+
+    Move-Item `
+        $File.FullName `
+        "$ProcessedPath\$($File.Name)" `
+        -Force
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "PROCESS COMPLETED"
+    Write-Host "========================================="
+    Write-Host ""
+
+    Write-Host "Moved To Processed Folder"
+}
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "QUEUE CHECK FINISHED"
+Write-Host "========================================="
+Write-Host ""
+
+Start-Sleep -Seconds 5
