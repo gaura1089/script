@@ -1,0 +1,468 @@
+param(
+
+    [string]$Mode,
+
+    [string]$FirstName,
+
+    [string]$LastName,
+
+    [string]$DisplayName,
+
+    [string]$OU,
+
+    [string]$CSVPath,
+
+    [switch]$DryRun
+
+)
+
+# =====================================================
+# IMPORT MODULES
+# =====================================================
+
+Import-Module ActiveDirectory
+
+# =====================================================
+# CONFIGURATION
+# =====================================================
+
+$ExchangeURL = "http://IN-TZ1-EXMBX2.in.coforgetech.com/PowerShell/"
+
+$Cred = Import-Clixml "C:\HR_Automation\Creds\ExchangeCred.xml"
+
+$BasePath = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation"
+
+$LogFolder = "$BasePath\Logs"
+
+# =====================================================
+# CREATE LOG FOLDER
+# =====================================================
+
+if (!(Test-Path $LogFolder)) {
+
+    New-Item -ItemType Directory -Path $LogFolder | Out-Null
+
+}
+
+$LogPath = "$LogFolder\Result_$(Get-Date -Format yyyyMMdd_HHmmss).csv"
+
+# =====================================================
+# PASSWORD GENERATOR
+# =====================================================
+
+function Generate-RandomPassword {
+
+    param ([int]$Length = 15)
+
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=?"
+
+    -join ((1..$Length) | ForEach-Object {
+
+        $chars[(Get-Random -Max $chars.Length)]
+
+    })
+
+}
+
+# =====================================================
+# OU MAPPING
+# =====================================================
+
+function Get-OUPath {
+
+    param($FriendlyOU)
+
+    switch ($FriendlyOU) {
+
+        "NoidaP1" {
+
+            return "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP1,DC=IN,DC=COFORGETECH,DC=COM"
+
+        }
+
+        "NoidaP2" {
+
+            return "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP2,DC=IN,DC=COFORGETECH,DC=COM"
+
+        }
+
+        "Gurgaon" {
+
+            return "OU=Users,OU=RestofCoforge,OU=Gurugram,DC=IN,DC=COFORGETECH,DC=COM"
+
+        }
+
+        "Hydrabad" {
+
+            return "OU=Users,OU=RestofCoforge,OU=Hyderabad,DC=IN,DC=COFORGETECH,DC=COM"
+
+        }
+
+        "Banluru" {
+
+            return "OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM"
+
+        }
+
+        default {
+
+            throw "Invalid OU selected: $FriendlyOU"
+
+        }
+
+    }
+
+}
+
+# =====================================================
+# UNIQUE ALIAS GENERATOR
+# =====================================================
+
+function Get-UniqueAlias {
+
+    param($FirstName, $LastName)
+
+    $domains = @(
+        "IN.COFORGETECH.COM",
+        "UK.COFORGETECH.COM",
+        "US.COFORGETECH.COM"
+    )
+
+    function Get-ValidAlias($fn, $ln) {
+
+        $domainLen = 13
+        $max = 30 - $domainLen
+
+        $base1 = "$fn.$ln"
+
+        if ($base1.Length -le $max) {
+
+            return $base1
+
+        }
+
+        $base2 = "$fn.$($ln.Substring(0,1))"
+
+        if ($base2.Length -le $max) {
+
+            return $base2
+
+        }
+
+        if ($fn.Length -le $max) {
+
+            return $fn
+
+        }
+
+        return $fn.Substring(0,$max)
+
+    }
+
+    $baseAlias = Get-ValidAlias $FirstName $LastName
+
+    $alias = $baseAlias
+
+    $count = 1
+
+    while ($true) {
+
+        $found = $false
+
+        foreach ($domain in $domains) {
+
+            $check = Get-ADUser `
+                -Filter "SamAccountName -eq '$alias'" `
+                -Server $domain `
+                -ErrorAction SilentlyContinue
+
+            if ($check) {
+
+                $found = $true
+                break
+
+            }
+
+        }
+
+        if (-not $found) {
+
+            return $alias
+
+        }
+
+        $alias = "$($FirstName).$count.$($LastName)"
+
+        if ($alias.Length -gt (30-13)) {
+
+            $alias = Get-ValidAlias "$FirstName$count" $LastName
+
+        }
+
+        $count++
+
+    }
+
+}
+
+# =====================================================
+# CONNECT TO EXCHANGE
+# =====================================================
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "Connecting to Exchange..."
+Write-Host "========================================="
+Write-Host ""
+
+try {
+
+    $Session = New-PSSession `
+        -ConfigurationName Microsoft.Exchange `
+        -ConnectionUri $ExchangeURL `
+        -Authentication Kerberos `
+        -Credential $Cred `
+        -ErrorAction Stop
+
+    Import-PSSession $Session `
+        -DisableNameChecking `
+        -AllowClobber | Out-Null
+
+    Set-ADServerSettings -ViewEntireForest $true
+
+    Write-Host "Connected Successfully"
+
+}
+catch {
+
+    Write-Host ""
+    Write-Host "Connection Failed"
+    Write-Host $_.Exception.Message
+    Write-Host ""
+
+    exit
+
+}
+
+# =====================================================
+# USER COLLECTION
+# =====================================================
+
+$Users = @()
+
+if ($Mode -eq "Single") {
+
+    $Users += [PSCustomObject]@{
+
+        FirstName   = $FirstName
+        LastName    = $LastName
+        DisplayName = $DisplayName
+        OU          = $OU
+
+    }
+
+}
+elseif ($Mode -eq "Bulk") {
+
+    if (!(Test-Path $CSVPath)) {
+
+        Write-Host "CSV file not found"
+        exit
+
+    }
+
+    $Users = Import-Csv $CSVPath
+
+}
+else {
+
+    Write-Host "Invalid Mode"
+    exit
+
+}
+
+# =====================================================
+# PROCESS USERS
+# =====================================================
+
+$Results = @()
+
+foreach ($User in $Users) {
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "Processing: $($User.DisplayName)"
+    Write-Host "========================================="
+    Write-Host ""
+
+    $Password = Generate-RandomPassword
+
+    $SecurePassword = ConvertTo-SecureString `
+        $Password `
+        -AsPlainText `
+        -Force
+
+    $Alias = Get-UniqueAlias `
+        $User.FirstName `
+        $User.LastName
+
+    $UPN = "$Alias@coforge.com"
+
+    $Routing = "$Alias@ntlgnoida.mail.onmicrosoft.com"
+
+    $Status = "FAILED"
+
+    $Error = ""
+
+    try {
+
+        $RealOU = Get-OUPath $User.OU
+
+        Write-Host "Alias : $Alias"
+        Write-Host "UPN   : $UPN"
+        Write-Host "OU    : $RealOU"
+
+        if ($DryRun) {
+
+            $Status = "DRY RUN"
+
+            Write-Host ""
+            Write-Host "DRY RUN MODE ENABLED"
+            Write-Host ""
+
+        }
+        else {
+
+            # ======================================
+            # CREATE REMOTE MAILBOX
+            # ======================================
+
+            New-RemoteMailbox `
+                -Name $User.DisplayName `
+                -FirstName $User.FirstName `
+                -LastName $User.LastName `
+                -Alias $Alias `
+                -UserPrincipalName $UPN `
+                -OnPremisesOrganizationalUnit $RealOU `
+                -Password $SecurePassword `
+                -ResetPasswordOnNextLogon $false `
+                -RemoteRoutingAddress $Routing `
+                -ErrorAction Stop
+
+            Write-Host ""
+            Write-Host "Mailbox command executed"
+            Write-Host ""
+
+            # ======================================
+            # WAIT FOR REPLICATION
+            # ======================================
+
+            Start-Sleep -Seconds 12
+
+            # ======================================
+            # VERIFY MAILBOX
+            # ======================================
+
+            $CheckMailbox = Get-RemoteMailbox `
+                -Identity $UPN `
+                -ErrorAction SilentlyContinue
+
+            if ($CheckMailbox) {
+
+                $Status = "SUCCESS"
+
+                Write-Host "Mailbox verified"
+
+            }
+            else {
+
+                $Status = "SUCCESS"
+
+                $Error = "Mailbox created but replication pending"
+
+                Write-Host "Replication delay detected"
+
+            }
+
+            # ======================================
+            # PRIMARY SMTP FIX
+            # ======================================
+
+            try {
+
+                Set-RemoteMailbox `
+                    $UPN `
+                    -PrimarySmtpAddress $UPN `
+                    -ErrorAction Stop
+
+                Write-Host "SMTP updated"
+
+            }
+            catch {
+
+                Write-Host "SMTP skipped"
+
+            }
+
+        }
+
+    }
+    catch {
+
+        $Error = $_.Exception.Message
+
+        Write-Host ""
+        Write-Host "FAILED: $Error"
+        Write-Host ""
+
+    }
+
+    # ==========================================
+    # RESULT OBJECT
+    # ==========================================
+
+    $Results += [PSCustomObject]@{
+
+        Name       = $User.DisplayName
+        Alias      = $Alias
+        Email      = $UPN
+        Password   = $Password
+        Status     = $Status
+        Error      = $Error
+        CreatedOn  = Get-Date
+
+    }
+
+}
+
+# =====================================================
+# EXPORT LOG
+# =====================================================
+
+$Results | Export-Csv `
+    $LogPath `
+    -NoTypeInformation `
+    -Encoding UTF8
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "PROCESS COMPLETED"
+Write-Host "========================================="
+Write-Host ""
+
+Write-Host "Log Saved:"
+Write-Host $LogPath
+
+# =====================================================
+# CLEANUP
+# =====================================================
+
+if ($Session) {
+
+    Remove-PSSession $Session
+
+}
+
+Write-Host ""
+Write-Host "Exchange Session Closed"
+Write-Host ""
