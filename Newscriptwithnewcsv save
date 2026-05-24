@@ -1,0 +1,301 @@
+param(
+    [string]$Mode,
+    [string]$FirstName,
+    [string]$LastName,
+    [string]$DisplayName,
+    [string]$OU
+)
+
+Import-Module ActiveDirectory
+
+# =========================================
+# EXCHANGE CREDENTIAL
+# =========================================
+
+$Cred = Import-Clixml "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Creds\ExchangeCred.xml"
+
+# =========================================
+# CONNECT TO EXCHANGE
+# =========================================
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "Connecting to Exchange..."
+Write-Host "========================================="
+Write-Host ""
+
+$Session = New-PSSession `
+    -ConfigurationName Microsoft.Exchange `
+    -ConnectionUri http://IN-TZ1-EXMBX2.in.coforgetech.com/PowerShell/ `
+    -Authentication Kerberos `
+    -Credential $Cred
+
+Import-PSSession $Session -DisableNameChecking -AllowClobber | Out-Null
+
+Write-Host "Connected Successfully"
+
+# =========================================
+# PASSWORD GENERATOR
+# =========================================
+
+function Generate-RandomPassword {
+
+    param ([int]$Length = 15)
+
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=?"
+
+    -join ((1..$Length) | ForEach-Object {
+        $chars[(Get-Random -Maximum $chars.Length)]
+    })
+}
+
+# =========================================
+# UNIQUE ALIAS GENERATOR
+# =========================================
+
+function Get-UniqueAlias {
+
+    param($FirstName, $LastName)
+
+    $domains = @(
+        "IN.COFORGETECH.COM",
+        "UK.COFORGETECH.COM",
+        "US.COFORGETECH.COM"
+    )
+
+    function Get-ValidAlias($fn, $ln) {
+
+        $domainLen = 13
+        $max = 30 - $domainLen
+
+        $base1 = "$fn.$ln"
+
+        if ($base1.Length -le $max) {
+            return $base1
+        }
+
+        $base2 = "$fn.$($ln.Substring(0,1))"
+
+        if ($base2.Length -le $max) {
+            return $base2
+        }
+
+        if ($fn.Length -le $max) {
+            return $fn
+        }
+
+        return $fn.Substring(0,$max)
+    }
+
+    $baseAlias = Get-ValidAlias $FirstName $LastName
+
+    $alias = $baseAlias
+    $count = 1
+
+    while ($true) {
+
+        $found = $false
+
+        foreach ($domain in $domains) {
+
+            $check = Get-ADUser `
+                -Filter "SamAccountName -eq '$alias'" `
+                -Server $domain `
+                -ErrorAction SilentlyContinue
+
+            if ($check) {
+                $found = $true
+                break
+            }
+        }
+
+        if (-not $found) {
+            return $alias
+        }
+
+        $alias = "$($FirstName).$count.$($LastName)"
+
+        if ($alias.Length -gt (30-13)) {
+            $alias = Get-ValidAlias "$FirstName$count" $LastName
+        }
+
+        $count++
+    }
+}
+
+# =========================================
+# SINGLE USER MODE
+# =========================================
+
+if ($Mode -eq "Single") {
+
+    Write-Host ""
+    Write-Host "========================================="
+    Write-Host "STARTING MAILBOX CREATION"
+    Write-Host "========================================="
+    Write-Host ""
+
+    # =========================================
+    # OU MAPPING
+    # =========================================
+
+    switch ($OU) {
+
+        "NoidaP1" {
+            $OUPath = "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP1,DC=IN,DC=COFORGETECH,DC=COM"
+        }
+
+        "NoidaP2" {
+            $OUPath = "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP2,DC=IN,DC=COFORGETECH,DC=COM"
+        }
+
+        "Gurgaon" {
+            $OUPath = "OU=Users,OU=RestofCoforge,OU=Gurugram,DC=IN,DC=COFORGETECH,DC=COM"
+        }
+
+        "Hydrabad" {
+            $OUPath = "OU=Users,OU=RestofCoforge,OU=Hyderabad,DC=IN,DC=COFORGETECH,DC=COM"
+        }
+
+        "Banluru" {
+            $OUPath = "OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM"
+        }
+
+        default {
+            Write-Host "Invalid OU"
+            exit
+        }
+    }
+
+    # =========================================
+    # PASSWORD
+    # =========================================
+
+    $Password = Generate-RandomPassword
+
+    $SecurePassword = ConvertTo-SecureString `
+        $Password `
+        -AsPlainText `
+        -Force
+
+    # =========================================
+    # ALIAS
+    # =========================================
+
+    $Alias = Get-UniqueAlias $FirstName $LastName
+
+    $UPN = "$Alias@coforge.com"
+
+    $Routing = "$Alias@ntlgnoida.mail.onmicrosoft.com"
+
+    Write-Host "Display Name : $DisplayName"
+    Write-Host "Alias        : $Alias"
+    Write-Host "Email        : $UPN"
+    Write-Host ""
+
+    # =========================================
+    # CREATE MAILBOX
+    # =========================================
+
+    try {
+
+        New-RemoteMailbox `
+            -Name $DisplayName `
+            -FirstName $FirstName `
+            -LastName $LastName `
+            -Alias $Alias `
+            -UserPrincipalName $UPN `
+            -OnPremisesOrganizationalUnit $OUPath `
+            -Password $SecurePassword `
+            -ResetPasswordOnNextLogon $false `
+            -RemoteRoutingAddress $Routing `
+            -ErrorAction Stop
+
+        Start-Sleep -Seconds 10
+
+        try {
+
+            Set-RemoteMailbox `
+                $UPN `
+                -PrimarySmtpAddress $UPN `
+                -ErrorAction Stop
+
+        }
+        catch {
+
+            Write-Host "SMTP update skipped"
+        }
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "MAILBOX CREATED SUCCESSFULLY"
+        Write-Host "========================================="
+        Write-Host ""
+
+        # =========================================
+        # LOG FOLDER
+        # =========================================
+
+        $LogFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Logs"
+
+        if (!(Test-Path $LogFolder)) {
+
+            New-Item `
+                -ItemType Directory `
+                -Path $LogFolder | Out-Null
+        }
+
+        # =========================================
+        # UNIQUE CSV NAME
+        # =========================================
+
+        $SafeName = $DisplayName.Replace(" ","_")
+
+        $LogPath = "$LogFolder\$SafeName.csv"
+
+        # =========================================
+        # EXPORT CSV
+        # =========================================
+
+        $Result = @()
+
+        $Result += [PSCustomObject]@{
+
+            DisplayName = $DisplayName
+            Alias       = $Alias
+            Email       = $UPN
+            Password    = $Password
+            Status      = "SUCCESS"
+            OU          = $OU
+        }
+
+        $Result | Export-Csv `
+            $LogPath `
+            -NoTypeInformation `
+            -Encoding UTF8
+
+        Write-Host "Log Saved: $LogPath"
+    }
+
+    catch {
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "MAILBOX CREATION FAILED"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host $_.Exception.Message
+    }
+}
+
+else {
+
+    Write-Host "Invalid Mode"
+}
+
+# =========================================
+# CLOSE SESSION
+# =========================================
+
+Remove-PSSession $Session
