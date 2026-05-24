@@ -1,3 +1,33 @@
 contains(outputs('Get_file_content_using_path')?['body/Name'],'_ERROR')
 
 
+
+Hello Team,
+
+Mailbox creation request has failed.
+
+Please find the attached error log file for troubleshooting.
+
+Employee Details:
+
+First Name: @{outputs('Get_response_details')?['body/FirstName']}
+
+Last Name: @{outputs('Get_response_details')?['body/LastName']}
+
+Display Name: @{outputs('Get_response_details')?['body/DisplayName']}
+
+OU: @{outputs('Get_response_details')?['body/SelectOU']}
+
+Regards,
+HR Automation System
+
+
+@{replace(outputs('Get_response_details')?['body/DisplayName'],' ','_')}_ERROR.csv
+
+
+
+
+
+
+
+Mailbox Creation Failed - @{outputs('Get_response_details')?['body/DisplayName']}
