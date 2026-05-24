@@ -1,0 +1,143 @@
+$QueuePath = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+
+$ProcessedPath = "$QueuePath\Processed"
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "CHECKING QUEUE FOLDER"
+Write-Host "========================================="
+Write-Host ""
+
+# =========================================
+# GET JSON FILES
+# =========================================
+
+$Files = Get-ChildItem "$QueuePath\*.json" -ErrorAction SilentlyContinue
+
+foreach ($File in $Files) {
+
+    try {
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "PROCESSING FILE"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "File Name : $($File.Name)"
+
+        # =========================================
+        # READ JSON
+        # =========================================
+
+        $Data = Get-Content $File.FullName | ConvertFrom-Json
+
+        $FirstName   = $Data.FirstName
+        $LastName    = $Data.LastName
+        $DisplayName = $Data.DisplayName
+        $OU          = $Data.OU
+
+        # =========================================
+        # DEBUG OUTPUT
+        # =========================================
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "USER DETAILS"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "First Name   : $FirstName"
+        Write-Host "Last Name    : $LastName"
+        Write-Host "Display Name : $DisplayName"
+        Write-Host "OU           : $OU"
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "STARTING MAILBOX CREATION"
+        Write-Host "========================================="
+        Write-Host ""
+
+        # =========================================
+        # RUN CREATEUSER.PS1
+        # =========================================
+
+        Start-Process powershell.exe `
+            -Wait `
+            -ArgumentList "-ExecutionPolicy Bypass -Command & {
+
+try {
+
+    & `"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\CreateUser.ps1`" `
+        -Mode Single `
+        -FirstName `"$FirstName`" `
+        -LastName `"$LastName`" `
+        -DisplayName `"$DisplayName`" `
+        -OU `"$OU`"
+
+    Write-Host ''
+    Write-Host '========================================='
+    Write-Host 'MAILBOX CREATION COMPLETED'
+    Write-Host 'WINDOW WILL CLOSE AUTOMATICALLY'
+    Write-Host '========================================='
+    Write-Host ''
+
+    Start-Sleep -Seconds 5
+
+}
+catch {
+
+    Write-Host ''
+    Write-Host '========================================='
+    Write-Host 'ERROR OCCURRED'
+    Write-Host 'WINDOW WILL CLOSE IN 3 MINUTES'
+    Write-Host '========================================='
+    Write-Host ''
+
+    Write-Host $_
+
+    Start-Sleep -Seconds 180
+}
+
+}"
+
+        # =========================================
+        # MOVE JSON TO PROCESSED
+        # =========================================
+
+        Move-Item `
+            $File.FullName `
+            "$ProcessedPath\$($File.Name)" `
+            -Force
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "PROCESS COMPLETED"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "Moved To Processed Folder"
+
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "WATCHER FAILED"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host $_.Exception.Message
+
+        Start-Sleep -Seconds 180
+    }
+
+}
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "QUEUE CHECK FINISHED"
+Write-Host "========================================="
+Write-Host ""
+
+Start-Sleep -Seconds 5
