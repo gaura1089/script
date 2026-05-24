@@ -23,3 +23,7 @@ PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts
 -OU: The term '-OU' is not recognized as a name of a cmdlet, function, script file, or executable program.
 Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
 PS C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts>
+
+
+
+.\CreateUser.ps1 -Mode Single -FirstName Coforge -LastName NPM -DisplayName "Coforge NPM" -OU NoidaP1
