@@ -100,3 +100,88 @@ foreach ($File in $Files) {
 }
 
 Write-Host "Queue Check Finished"
+
+
+
+
+
+
+
+
+
+
+
+
+
+$QueuePath = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+
+$ProcessedPath = "$QueuePath\Processed"
+
+Write-Host "Checking Queue Folder..."
+
+$Files = Get-ChildItem "$QueuePath\*.json" -ErrorAction SilentlyContinue
+
+foreach ($File in $Files) {
+
+    try {
+
+        Write-Host "Processing: $($File.Name)"
+
+        $Data = Get-Content $File.FullName | ConvertFrom-Json
+
+        $FirstName   = $Data.FirstName
+        $LastName    = $Data.LastName
+        $DisplayName = $Data.DisplayName
+        $OU          = $Data.OU
+        $HREmail     = $Data.HREmail
+
+        Write-Host "Creating mailbox for $DisplayName"
+
+        Start-Process powershell.exe -WindowStyle Hidden -Wait -ArgumentList "-ExecutionPolicy Bypass -File `"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\CreateUser.ps1`" -Mode Single -FirstName `"$FirstName`" -LastName `"$LastName`" -DisplayName `"$DisplayName`" -OU `"$OU`""
+
+        Move-Item $File.FullName "$ProcessedPath\$($File.Name)" -Force
+
+        Write-Host "Completed: $DisplayName"
+
+        # =========================================
+        # SEND SUCCESS EMAIL TO HR
+        # =========================================
+
+        $Subject = "Mailbox Created Successfully - $DisplayName"
+
+        $Body = @"
+Hello HR Team,
+
+Mailbox has been created successfully.
+
+Display Name : $DisplayName
+First Name   : $FirstName
+Last Name    : $LastName
+OU           : $OU
+
+Regards,
+HR Automation System
+"@
+
+        Send-MailMessage `
+            -To $HREmail `
+            -From "automation@coforge.com" `
+            -Subject $Subject `
+            -Body $Body `
+            -SmtpServer "smtp.office365.com" `
+            -Port 587 `
+            -UseSsl `
+            -Credential (Import-Clixml "C:\HR_Automation\Creds\ExchangeCred.xml")
+
+        Write-Host "Success Email Sent To HR"
+
+    }
+    catch {
+
+        Write-Host "Failed: $_"
+
+    }
+
+}
+
+Write-Host "Queue Check Finished"
