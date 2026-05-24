@@ -703,3 +703,77 @@ exit
 
 Email,Password,Alias,Status
 waiting,waiting,waiting,processing
+
+
+
+
+
+
+
+
+
+
+Mailbox Credentials - @{outputs('Get_response_details')?['body/DisplayName']}
+
+Hello Team,
+
+Mailbox has been created successfully.
+
+Please find attached credentials CSV file containing:
+
+• Email Address
+• Password
+• Alias
+• Status
+
+Employee Details:
+
+First Name: @{outputs('Get_response_details')?['body/FirstName']}
+
+Last Name: @{outputs('Get_response_details')?['body/LastName']}
+
+Display Name: @{outputs('Get_response_details')?['body/DisplayName']}
+
+OU: @{outputs('Get_response_details')?['body/SelectOU']}
+
+Regards,
+IT Automation System
+
+
+
+Mailbox Creation Failed - @{outputs('Get_response_details')?['body/DisplayName']}
+
+
+
+
+Hello Team,
+
+Mailbox creation request has failed.
+
+Please find attached error CSV/log file for troubleshooting.
+
+Employee Details:
+
+First Name: @{outputs('Get_response_details')?['body/FirstName']}
+
+Last Name: @{outputs('Get_response_details')?['body/LastName']}
+
+Display Name: @{outputs('Get_response_details')?['body/DisplayName']}
+
+OU: @{outputs('Get_response_details')?['body/SelectOU']}
+
+Regards,
+IT Automation System
+
+
+
+
+
+
+
+
+
+
+
+
+
