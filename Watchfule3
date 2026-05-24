@@ -695,3 +695,11 @@ Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..."
 Start-Sleep -Seconds 10
 
 exit
+
+
+
+
+
+
+Email,Password,Alias,Status
+waiting,waiting,waiting,processing
