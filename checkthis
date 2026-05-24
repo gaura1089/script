@@ -1,0 +1,41 @@
+PowerShell 7.5.4
+
+   A new PowerShell stable release is available: v7.6.2
+   Upgrade now, or check out the release page at:
+     https://aka.ms/PowerShell-Release?tag=v7.6.2
+
+PS C:\Users\ravcfg> cd ..
+PS C:\Users> cd  C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts
+Set-Location: A positional parameter cannot be found that accepts argument '-'.
+PS C:\Users> cd  C:\Users\Gaurav.26\OneDrive-Coforge Limited\Documents\HR_Automation\Scripts
+Set-Location: A positional parameter cannot be found that accepts argument 'Limited\Documents\HR_Automation\Scripts'.
+PS C:\Users> cd  C:\Users\Gaurav.26\Documents\HR_Automation\Scripts
+PS C:\Users\Gaurav.26\Documents\HR_Automation\Scripts> dir
+
+    Directory: C:\Users\Gaurav.26\Documents\HR_Automation\Scripts
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          24-05-2026    13:42           9875 CreateUser.ps1
+-a---          24-05-2026    00:17           1279 Watcher.ps1
+
+PS C:\Users\Gaurav.26\Documents\HR_Automation\Scripts> .\CreateUser.ps1
+WARNING: Module ActiveDirectory is loaded in Windows PowerShell using WinPSCompatSession remoting session; please note that all input and output of commands from this module will be deserialized objects. If you want to load this module into PowerShell please use 'Import-Module -SkipEditionCheck' syntax.
+Import-Clixml: C:\Users\Gaurav.26\Documents\HR_Automation\Scripts\CreateUser.ps1:31
+Line |
+  31 |  $Cred = Import-Clixml "C:\HR_Automation\Creds\ExchangeCred.xml"
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Could not find a part of the path 'C:\HR_Automation\Creds\ExchangeCred.xml'.
+
+=========================================
+Connecting to Exchange...
+=========================================
+
+
+PowerShell credential request
+Enter your credentials.
+User: ravcfg
+Password for user ravcfg: ************
+
+Connected Successfully
+Invalid Mode
