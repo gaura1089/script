@@ -1,1 +1,2 @@
 /Documents/HR_Automation/Logs/@{replace(outputs('Get_response_details')?['body/DisplayName'],' ','_')}.csv
+@{replace(outputs('Get_response_details')?['body/DisplayName'],' ','_')}.csv
