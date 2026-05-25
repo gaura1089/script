@@ -1,1 +1,13 @@
+
+triggerOutputs()?['body/file/name']
+
+outputs('Create_file')?['body/Name']
+
+
+
+
+
+
+
+
 concat(replace(outputs('Create_file')?['body/DisplayName'],' ','_'),'.csv')
