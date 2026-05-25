@@ -124,3 +124,132 @@ Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..." -ForegroundColor Yellow
 Start-Sleep -Seconds 10
 
 exit
+
+
+====================
+
+
+
+
+$queueFolder     = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+$processedFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Processed"
+
+Write-Host ""
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host "        HR AUTOMATION WATCHER STARTED       " -ForegroundColor Green
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Check Queue Folder
+$jsonFiles = Get-ChildItem -Path $queueFolder -Filter *.json
+
+if ($jsonFiles.Count -eq 0) {
+
+    Write-Host "NO JSON FILE FOUND IN QUEUE" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..." -ForegroundColor Cyan
+
+    Start-Sleep -Seconds 10
+    exit
+}
+
+# Process each JSON
+foreach ($jsonFile in $jsonFiles) {
+
+    Write-Host ""
+    Write-Host "=============================================" -ForegroundColor Cyan
+    Write-Host "PROCESSING FILE: $($jsonFile.Name)" -ForegroundColor Green
+    Write-Host "=============================================" -ForegroundColor Cyan
+
+    try {
+
+        # Read JSON
+        $jsonData = Get-Content $jsonFile.FullName -Raw | ConvertFrom-Json
+
+        $FirstName  = $jsonData.FirstName
+        $LastName   = $jsonData.LastName
+        $DisplayName = $jsonData.DisplayName
+        $HREmail    = $jsonData.HR_Email
+        $OU         = $jsonData.OU
+
+        Write-Host ""
+        Write-Host "USER DETAILS" -ForegroundColor Yellow
+        Write-Host "---------------------------------------------"
+
+        Write-Host "First Name  : $FirstName"
+        Write-Host "Last Name   : $LastName"
+        Write-Host "DisplayName : $DisplayName"
+        Write-Host "HR Email    : $HREmail"
+        Write-Host "OU          : $OU"
+
+        Write-Host ""
+        Write-Host "STARTING MAILBOX CREATION..." -ForegroundColor Cyan
+
+        # ==========================================
+        # CALL MAIN MAILBOX CREATION SCRIPT
+        # ==========================================
+
+        & "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\CreateUser.ps1" `
+            -FirstName $FirstName `
+            -LastName $LastName `
+            -DisplayName $DisplayName `
+            -OU $OU
+
+        Write-Host ""
+        Write-Host "MAILBOX SCRIPT EXECUTED" -ForegroundColor Green
+
+        # ==========================================
+        # CHECK CSV LOG
+        # ==========================================
+
+        $csvName = $DisplayName.Replace(" ","_") + ".csv"
+
+        $successLogPath = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Logs\$csvName"
+
+        Write-Host ""
+        Write-Host "CHECKING SUCCESS LOG..." -ForegroundColor Cyan
+
+        Start-Sleep -Seconds 5
+
+        if (Test-Path $successLogPath) {
+
+            Write-Host ""
+            Write-Host "SUCCESS LOG FOUND" -ForegroundColor Green
+            Write-Host "CSV PATH: $successLogPath"
+
+        }
+        else {
+
+            Write-Host ""
+            Write-Host "NO SUCCESS LOG FOUND" -ForegroundColor Red
+        }
+
+        # ==========================================
+        # MOVE JSON TO PROCESSED
+        # ==========================================
+
+        Move-Item $jsonFile.FullName "$processedFolder\$($jsonFile.Name)" -Force
+
+        Write-Host ""
+        Write-Host "JSON MOVED TO PROCESSED" -ForegroundColor Green
+
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "ERROR OCCURRED:" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
+Write-Host ""
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host "PROCESS COMPLETED" -ForegroundColor Green
+Write-Host "=============================================" -ForegroundColor Cyan
+
+Write-Host ""
+Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..." -ForegroundColor Yellow
+
+Start-Sleep -Seconds 10
+
+exit
