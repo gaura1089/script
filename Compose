@@ -1,0 +1,1 @@
+concat(replace(outputs('Create_file')?['body/DisplayName'],' ','_'),'.csv')
