@@ -1,0 +1,171 @@
+{
+  "type": "Wait",
+  "inputs": {
+    "interval": {
+      "count": 3,
+      "unit": "Minute"
+    }
+  },
+  "runAfter": {
+    "Create_file": [
+      "Succeeded"
+    ]
+  }
+}
+
+
+
+
+{
+  "type": "OpenApiConnection",
+  "inputs": {
+    "parameters": {
+      "id": "b!WNt2MzDnIEKRxOdZ9GxNgsvasvhvOjlHpD75TqcmPf8duVr87SFNT4AMy4o5GLyu.01TJEJD7VBJ736SR75OVCZG35PEELXWT65"
+    },
+    "host": {
+      "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+      "connection": "shared_onedriveforbusiness",
+      "operationId": "ListFolderV2"
+    }
+  },
+  "runAfter": {
+    "Delay": [
+      "Succeeded"
+    ]
+  },
+  "metadata": {
+    "b!WNt2MzDnIEKRxOdZ9GxNgsvasvhvOjlHpD75TqcmPf8duVr87SFNT4AMy4o5GLyu.01TJEJD7VBJ736SR75OVCZG35PEELXWT65": "/Documents/HR_Automation/Logs"
+  }
+}
+
+
+
+
+{
+  "type": "Compose",
+  "inputs": "triggerOutputs()?['body/file/name']",
+  "runAfter": {
+    "List_files_in_folder": [
+      "Succeeded"
+    ]
+  }
+}
+
+
+
+
+
+
+{
+  "type": "Query",
+  "inputs": {
+    "from": "@outputs('List_files_in_folder')?['body/value']",
+    "where": "@equals('Name',outputs('Compose'))"
+  },
+  "runAfter": {
+    "Compose": [
+      "Succeeded"
+    ]
+  }
+}
+
+
+
+
+{
+  "type": "Foreach",
+  "foreach": "@body('Filter_array')",
+  "actions": {
+    "Get_file_content": {
+      "type": "OpenApiConnection",
+      "inputs": {
+        "parameters": {
+          "id": "@items('Apply_to_each')",
+          "inferContentType": true
+        },
+        "host": {
+          "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+          "connection": "shared_onedriveforbusiness",
+          "operationId": "GetFileContent"
+        }
+      }
+    },
+    "Send_an_email_(V2)_2": {
+      "type": "OpenApiConnection",
+      "inputs": {
+        "parameters": {
+          "emailMessage/To": "@outputs('Get_response_details')?['body/rf21227b96c314ffea15275c33df3af90']",
+          "emailMessage/Subject": "Mailbox Created ",
+          "emailMessage/Body": "<p class=\"editor-paragraph\">Hi HR,<br><br>Mailbox has been created successfully.<br><br>Please find attached CSV log file.<br><br>Thanks,<br>IT- Department</p>",
+          "emailMessage/Attachments": [
+            {
+              "Name": "@items('Apply_to_each')?['Name']",
+              "ContentBytes": "@body('Get_file_content')"
+            }
+          ],
+          "emailMessage/Importance": "Normal"
+        },
+        "host": {
+          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+          "connection": "shared_office365",
+          "operationId": "SendEmailV2"
+        }
+      },
+      "runAfter": {
+        "Get_file_content": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "runAfter": {
+    "Filter_array": [
+      "Succeeded"
+    ]
+  }
+}
+
+
+{
+  "type": "OpenApiConnection",
+  "inputs": {
+    "parameters": {
+      "id": "@items('Apply_to_each')",
+      "inferContentType": true
+    },
+    "host": {
+      "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+      "connection": "shared_onedriveforbusiness",
+      "operationId": "GetFileContent"
+    }
+  }
+}
+
+
+{
+  "type": "OpenApiConnection",
+  "inputs": {
+    "parameters": {
+      "emailMessage/To": "@outputs('Get_response_details')?['body/rf21227b96c314ffea15275c33df3af90']",
+      "emailMessage/Subject": "Mailbox Created ",
+      "emailMessage/Body": "<p class=\"editor-paragraph\">Hi HR,<br><br>Mailbox has been created successfully.<br><br>Please find attached CSV log file.<br><br>Thanks,<br>IT- Department</p>",
+      "emailMessage/Attachments": [
+        {
+          "Name": "@items('Apply_to_each')?['Name']",
+          "ContentBytes": "@body('Get_file_content')"
+        }
+      ],
+      "emailMessage/Importance": "Normal"
+    },
+    "host": {
+      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+      "connection": "shared_office365",
+      "operationId": "SendEmailV2"
+    }
+  },
+  "runAfter": {
+    "Get_file_content": [
+      "Succeeded"
+    ]
+  }
+}
