@@ -99,6 +99,18 @@ switch ($OU) {
     "banluru" {
         $OUPath = "OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM"
     }
+   "Bangluru" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM"
+
+    }
+
+
+   "Spain" {
+        OU=Users,OU=Spain,OU=OverSeas,DC=IN,DC=COFORGETECH,DC=COM
+
+
+    }
+
 
     default {
 
