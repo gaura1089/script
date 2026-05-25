@@ -339,7 +339,13 @@ exit
 
 
 
-
+{
+  "FirstName":"@{outputs('Get_response_details')?['body/FirstName']}",
+  "LastName":"@{outputs('Get_response_details')?['body/LastName']}",
+  "DisplayName":"@{outputs('Get_response_details')?['body/DisplayName']}",
+  "HR_Email":"@{outputs('Get_response_details')?['body/ResponderEmail']}",
+  "OU":"@{outputs('Get_response_details')?['body/SelectOU']}"
+}
 
 
 
