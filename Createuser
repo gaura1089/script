@@ -1,0 +1,430 @@
+param(
+    [string]$Mode,
+    [string]$FirstName,
+    [string]$LastName,
+    [string]$DisplayName,
+    [string]$OU
+)
+
+Import-Module ActiveDirectory
+
+# =========================================
+# PATHS
+# =========================================
+
+$LogFolder = `
+"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Logs"
+
+# =========================================
+# MODE CHECK
+# =========================================
+
+if ($Mode -ne "Single") {
+
+    Write-Host ""
+    Write-Host "INVALID MODE" -ForegroundColor Red
+
+    [System.Environment]::Exit(1)
+}
+
+# =========================================
+# OU VALIDATION
+# =========================================
+
+$OU = $OU.Trim().ToLower()
+
+switch ($OU) {
+
+    "noidap1" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP1,DC=IN,DC=COFORGETECH,DC=COM"
+    }
+
+    "noidap2" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=GreaterNoidaP2,DC=IN,DC=COFORGETECH,DC=COM"
+    }
+
+    "gurgoan" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=Gurugram,DC=IN,DC=COFORGETECH,DC=COM"
+    }
+
+    "hydrabad" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=Hyderabad,DC=IN,DC=COFORGETECH,DC=COM"
+    }
+
+    "banluru" {
+        $OUPath = "OU=Users,OU=RestofCoforge,OU=Bengaluru,DC=IN,DC=COFORGETECH,DC=COM"
+    }
+
+    default {
+
+        Write-Host ""
+        Write-Host "INVALID OU" -ForegroundColor Red
+
+        if (!(Test-Path $LogFolder)) {
+
+            New-Item `
+                -ItemType Directory `
+                -Path $LogFolder | Out-Null
+        }
+
+        $SafeName = $DisplayName.Replace(" ","_")
+
+        $ErrorLog = "$LogFolder\$SafeName`_ERROR.csv"
+
+        [PSCustomObject]@{
+
+            DisplayName = $DisplayName
+            Status      = "FAILED"
+            Error       = "INVALID OU"
+            OU          = $OU
+
+        } | Export-Csv `
+            $ErrorLog `
+            -NoTypeInformation `
+            -Encoding UTF8
+
+        [System.Environment]::Exit(1)
+    }
+}
+
+# =========================================
+# EXCHANGE CREDENTIAL
+# =========================================
+
+$Cred = Import-Clixml `
+"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Creds\Cred.xml"
+
+# =========================================
+# CONNECT EXCHANGE
+# =========================================
+
+try {
+
+    Write-Host ""
+    Write-Host "CONNECTING TO EXCHANGE..." -ForegroundColor Cyan
+
+    $Session = New-PSSession `
+        -ConfigurationName Microsoft.Exchange `
+        -ConnectionUri http://IN-TZ1-EXMBX2.in.coforgetech.com/PowerShell/ `
+        -Authentication Kerberos `
+        -Credential $Cred `
+        -ErrorAction Stop
+
+    Import-PSSession `
+        $Session `
+        -DisableNameChecking `
+        -AllowClobber | Out-Null
+
+    Write-Host "CONNECTED SUCCESSFULLY" -ForegroundColor Green
+}
+catch {
+
+    Write-Host ""
+    Write-Host "EXCHANGE CONNECTION FAILED" -ForegroundColor Red
+
+    $SafeName = $DisplayName.Replace(" ","_")
+
+    $ErrorLog = "$LogFolder\$SafeName`_ERROR.csv"
+
+    [PSCustomObject]@{
+
+        DisplayName = $DisplayName
+        Status      = "FAILED"
+        Error       = $_.Exception.Message
+
+    } | Export-Csv `
+        $ErrorLog `
+        -NoTypeInformation `
+        -Encoding UTF8
+
+    [System.Environment]::Exit(1)
+}
+
+# =========================================
+# PASSWORD
+# =========================================
+
+function Generate-RandomPassword {
+
+    param([int]$Length = 15)
+
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=?"
+
+    -join ((1..$Length) | ForEach-Object {
+        $chars[(Get-Random -Maximum $chars.Length)]
+    })
+}
+
+# =========================================
+# CHECK ALIAS EXISTS
+# =========================================
+
+function Alias-Exists {
+
+    param($Alias)
+
+    $domains = @(
+        "IN.COFORGETECH.COM",
+        "UK.COFORGETECH.COM",
+        "US.COFORGETECH.COM"
+    )
+
+    foreach ($domain in $domains) {
+
+        $check = Get-ADUser `
+            -Filter "SamAccountName -eq '$Alias'" `
+            -Server $domain `
+            -ErrorAction SilentlyContinue
+
+        if ($check) {
+
+            return $true
+        }
+    }
+
+    return $false
+}
+
+# =========================================
+# UNIQUE ALIAS
+# =========================================
+
+function Get-UniqueAlias {
+
+    param($FirstName, $LastName)
+
+    $maxLength = 30
+
+    $FirstName = ($FirstName -replace '\s','').ToLower()
+    $LastName  = ($LastName -replace '\s','').ToLower()
+
+    function Get-NumberedAlias {
+
+        param($Alias)
+
+        if (-not (Alias-Exists $Alias)) {
+
+            return $Alias
+        }
+
+        $count = 1
+
+        while ($true) {
+
+            if ($Alias.Contains(".")) {
+
+                $parts = $Alias.Split(".")
+
+                if ($parts.Count -eq 2) {
+
+                    $newAlias = "$($parts[0]).$count.$($parts[1])"
+                }
+                else {
+
+                    $newAlias = "$Alias.$count"
+                }
+            }
+            else {
+
+                $newAlias = "$Alias.$count"
+            }
+
+            if ($newAlias.Length -le $maxLength) {
+
+                if (-not (Alias-Exists $newAlias)) {
+
+                    return $newAlias
+                }
+            }
+
+            $count++
+        }
+    }
+
+    # firstname.lastname
+
+    if ($LastName) {
+
+        $alias = "$FirstName.$LastName"
+
+        if ($alias.Length -le $maxLength) {
+
+            return Get-NumberedAlias $alias
+        }
+    }
+
+    # firstname.l
+
+    if ($LastName) {
+
+        $lastInitial = $LastName.Substring(0,1)
+
+        $alias = "$FirstName.$lastInitial"
+
+        if ($alias.Length -le $maxLength) {
+
+            return Get-NumberedAlias $alias
+        }
+    }
+
+    # compress firstname
+
+    $chunks = @()
+
+    $temp = $FirstName
+
+    while ($temp.Length -gt 0) {
+
+        if ($temp.Length -gt 8) {
+
+            $chunks += $temp.Substring(0,8)
+
+            $temp = $temp.Substring(8)
+        }
+        else {
+
+            $chunks += $temp
+            break
+        }
+    }
+
+    $compressed = ""
+
+    foreach ($c in $chunks) {
+
+        $compressed += $c.Substring(0,1).ToUpper()
+    }
+
+    $readable = $FirstName.Substring(
+        0,
+        [Math]::Min(12,$FirstName.Length)
+    )
+
+    $newFirst = "$readable$compressed"
+
+    if ($LastName) {
+
+        $lastInitial = $LastName.Substring(0,1)
+
+        $alias = "$newFirst.$lastInitial"
+    }
+    else {
+
+        $alias = "$newFirst"
+    }
+
+    if ($alias.Length -gt $maxLength) {
+
+        $alias = $alias.Substring(0,$maxLength)
+    }
+
+    return Get-NumberedAlias $alias
+}
+
+# =========================================
+# USER DETAILS
+# =========================================
+
+$Password = Generate-RandomPassword
+
+$SecurePassword = ConvertTo-SecureString `
+$Password `
+-AsPlainText `
+-Force
+
+$Alias = Get-UniqueAlias `
+$FirstName `
+$LastName
+
+$UPN = "$Alias@coforge.com"
+
+$Routing = "$Alias@ntlgnoida.mail.onmicrosoft.com"
+
+Write-Host ""
+Write-Host "ALIAS : $Alias"
+Write-Host "EMAIL : $UPN"
+
+# =========================================
+# CREATE MAILBOX
+# =========================================
+
+try {
+
+    New-RemoteMailbox `
+        -Name $DisplayName `
+        -FirstName $FirstName `
+        -LastName $LastName `
+        -Alias $Alias `
+        -UserPrincipalName $UPN `
+        -OnPremisesOrganizationalUnit $OUPath `
+        -Password $SecurePassword `
+        -RemoteRoutingAddress $Routing `
+        -ResetPasswordOnNextLogon $false `
+        -ErrorAction Stop
+
+    Start-Sleep 10
+
+    Write-Host ""
+    Write-Host "MAILBOX CREATED SUCCESSFULLY" -ForegroundColor Green
+
+    if (!(Test-Path $LogFolder)) {
+
+        New-Item `
+            -ItemType Directory `
+            -Path $LogFolder | Out-Null
+    }
+
+    $SafeName = $DisplayName.Replace(" ","_")
+
+    $LogPath = "$LogFolder\$SafeName.csv"
+
+    [PSCustomObject]@{
+
+        DisplayName = $DisplayName
+        Alias       = $Alias
+        Email       = $UPN
+        Password    = $Password
+        Status      = "SUCCESS"
+        OU          = $OU
+
+    } | Export-Csv `
+        $LogPath `
+        -NoTypeInformation `
+        -Encoding UTF8
+
+    Write-Host ""
+    Write-Host "SUCCESS LOG SAVED"
+}
+catch {
+
+    Write-Host ""
+    Write-Host "MAILBOX CREATION FAILED" -ForegroundColor Red
+
+    $SafeName = $DisplayName.Replace(" ","_")
+
+    $ErrorLog = "$LogFolder\$SafeName`_ERROR.csv"
+
+    [PSCustomObject]@{
+
+        DisplayName = $DisplayName
+        Status      = "FAILED"
+        Error       = $_.Exception.Message
+
+    } | Export-Csv `
+        $ErrorLog `
+        -NoTypeInformation `
+        -Encoding UTF8
+}
+
+if ($Session) {
+
+    Remove-PSSession $Session
+}
+
+Get-Job | Stop-Job -ErrorAction SilentlyContinue
+Get-Job | Remove-Job -ErrorAction SilentlyContinue
+
+Write-Host ""
+Write-Host "PROCESS COMPLETED"
+
+[System.Environment]::Exit(0)
