@@ -1,0 +1,120 @@
+gauravkumarUpadhay@coforge.com
+
+
+1. Dekho firstname ( Gaurav ) lastname ( Upadhayay )
+
+Gaurav.Upadhayay@coforge.com
+
+Agar already exist krta hian 
+
+then 
+
+Gaurav.1.Upadhayay@coforge.com
+
+agr ye bhi alrradexist krta hian 
+
+then 
+
+Gaurav.2.Upadhayay@coforge.com
+
+bas number bich ke increase ho te jayenge jab tak uique identy nhi mil jaati hain...
+
+limits ko dhyaan mien rakhte hue..
+
+
+2.   Dekho firstname ( Gauravkumar ) lastname ( UpadhayaySinghRathor )
+
+Gauravkumar.UpadhayaySinghRathor@coforge.com ( not possible )
+
+
+Gauravkumar.U@coforge.com ( last name ka first letter lenege then )
+Agar already exist krta hian 
+
+
+Gauravkumar.1.U@coforge.com
+
+Agar already exist krta hian 
+
+Gauravkumar.2.U@coforge.com
+
+so on....
+
+
+3. Dekho firstname ( GauravkumarUpadhayaySinghRathor ) lastname ( janvi )
+
+GauravkumarUpadhayaySinghRathor.janvi@coforge.com  ( ye bhi not possible )
+
+then
+
+keep first letter of lastname ( Rahothor ka R rakhlo )
+
+
+GauravkumarUpadhayaySinghR.j@coforge.com ( ye bhi not possible )
+
+then
+
+( Singh ka S rakhlo )
+
+
+GauravkumarUpadhayaySR.j@coforge.com   ( ye bhi not possible ) 
+
+
+then 
+
+
+( Upadhayay ka U rakhlo )
+
+GauravkumarUSR.j@coforge.com  ( ye ho skta hian kyu ki 28 charaters hian isme ) 
+
+GauravkumarUSR.j@coforge.com ( ye rakhna hoga )
+
+Agar already exist krta hian 
+
+then 
+
+GauravkumarUSR.1.j@coforge.com 
+
+agr ye bhi alrradexist krta hian 
+
+then 
+
+GauravkumarUSR.2.j@coforge.com 
+
+
+
+
+4. Agar sirf firstname kaafi lenthi ho To koi second name nhi hian 
+
+
+
+jaise 
+
+
+GauravkumarUpadhayaySinghRathor@coforge.com
+
+Keep R of Rathor
+
+
+GauravkumarUpadhayaySinghR@coforge.com ( ye bhi not possible ) 
+
+
+then:-
+
+GauravkumarUpadhayaySR@coforge.com ( ye bhi not possible ) 
+
+then:-
+
+GauravkumarUSR@coforge.com   ( Ye possible hian )
+
+Agar already exist krta hian 
+
+then 
+
+GauravkumarUSR.1@coforge.com 
+
+agr ye bhi alrradexist krta hian 
+
+then 
+
+GauravkumarUSR.2@coforge.com 
+
