@@ -11,3 +11,7 @@ outputs('Create_file')?['body/Name']
 
 
 concat(replace(outputs('Create_file')?['body/DisplayName'],' ','_'),'.csv')
+
+
+
+@equals(item()?['Name'], outputs('Compose'))
