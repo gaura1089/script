@@ -95,7 +95,238 @@ exit
 
 Mailbox Creation Failed - @{outputs('Get_response_details')?['body/DisplayName']}
 
+{
+  "FirstName":"@{outputs('Start_and_wait_for_an_approval')?['body/FirstName']}",
+  "LastName":"@{outputs('Start_and_wait_for_an_approval')?['body/LastName']}",
+  "DisplayName":"@{outputs('Start_and_wait_for_an_approval')?['body/DisplayName']}",
+  "HR_Email":"@{outputs('Start_and_wait_for_an_approval')?['body/Responder/email']}",
+  "OU":"@{outputs('Start_and_wait_for_an_approval')?['body/SelectOU']}"
+}
 
+
+
+# =========================================
+# WATCHER.PS1
+# FINAL VERSION
+# =========================================
+
+$QueueFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Queue"
+
+$ProcessedFolder = "$QueueFolder\Processed"
+
+$CreateUserScript = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Scripts\CreateUser.ps1"
+
+$LogsFolder = "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Logs"
+
+# =========================================
+# SMTP CREDENTIAL
+# =========================================
+
+$MailCred = Import-Clixml "C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation\Creds\MailCred.xml"
+
+# =========================================
+# CREATE PROCESSED FOLDER
+# =========================================
+
+if (!(Test-Path $ProcessedFolder)) {
+
+    New-Item `
+        -ItemType Directory `
+        -Path $ProcessedFolder | Out-Null
+}
+
+# =========================================
+# START WATCHER
+# =========================================
+
+Clear-Host
+
+Write-Host ""
+Write-Host "========================================="
+Write-Host "CHECKING QUEUE FOLDER"
+Write-Host "========================================="
+Write-Host ""
+
+# =========================================
+# GET JSON FILES
+# =========================================
+
+$Files = Get-ChildItem `
+    -Path $QueueFolder `
+    -Filter *.json `
+    -File `
+    -ErrorAction SilentlyContinue
+
+# =========================================
+# NO FILE FOUND
+# =========================================
+
+if ($Files.Count -eq 0) {
+
+    Write-Host "NO PENDING REQUEST FOUND..."
+
+    Write-Host ""
+    Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..."
+
+    Start-Sleep -Seconds 10
+
+    exit
+}
+
+# =========================================
+# PROCESS FILES
+# =========================================
+
+foreach ($File in $Files) {
+
+    try {
+
+        Clear-Host
+
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "PROCESSING FILE"
+        Write-Host "========================================="
+        Write-Host ""
+
+        Write-Host "File Name : $($File.Name)"
+
+        # =========================================
+        # READ JSON
+        # =========================================
+
+        $JsonData = Get-Content `
+            $File.FullName `
+            -Raw | ConvertFrom-Json
+
+        $FirstName   = $JsonData.FirstName
+        $LastName    = $JsonData.LastName
+        $DisplayName = $JsonData.DisplayName
+        $OU          = $JsonData.OU
+        $HREmail     = $JsonData.HR_Email
+
+        Write-Host ""
+        Write-Host "STARTING MAILBOX CREATION..."
+        Write-Host ""
+
+        # =========================================
+        # RUN CREATEUSER
+        # =========================================
+
+        powershell.exe `
+            -NoProfile `
+            -ExecutionPolicy Bypass `
+            -File $CreateUserScript `
+            -Mode "Single" `
+            -FirstName $FirstName `
+            -LastName $LastName `
+            -DisplayName $DisplayName `
+            -OU $OU
+
+        # =========================================
+        # WAIT FOR LOGS
+        # =========================================
+
+        Start-Sleep -Seconds 15
+
+        $SafeName = $DisplayName.Replace(" ","_")
+
+        $SuccessLog = "$LogsFolder\$SafeName.csv"
+
+        $ErrorLog = "$LogsFolder\$SafeName`_ERROR.csv"
+
+        # =========================================
+        # SUCCESS MAIL
+        # =========================================
+
+        if (Test-Path $SuccessLog) {
+
+            Write-Host ""
+            Write-Host "SUCCESS LOG FOUND"
+            Write-Host ""
+
+            Send-MailMessage `
+                -From "automation@coforge.com" `
+                -To $HREmail `
+                -Subject "Mailbox Credentials - $DisplayName" `
+                -Body "Mailbox has been created successfully. Please find attached credentials CSV." `
+                -SmtpServer "smtp.office365.com" `
+                -Port 587 `
+                -UseSsl `
+                -Credential $MailCred `
+                -Attachments $SuccessLog
+        }
+
+        # =========================================
+        # FAILURE MAIL
+        # =========================================
+
+        elseif (Test-Path $ErrorLog) {
+
+            Write-Host ""
+            Write-Host "ERROR LOG FOUND"
+            Write-Host ""
+
+            Send-MailMessage `
+                -From "automation@coforge.com" `
+                -To $HREmail `
+                -Subject "Mailbox Creation Failed - $DisplayName" `
+                -Body "Mailbox creation failed. Please find attached error CSV." `
+                -SmtpServer "smtp.office365.com" `
+                -Port 587 `
+                -UseSsl `
+                -Credential $MailCred `
+                -Attachments $ErrorLog
+        }
+
+        else {
+
+            Write-Host ""
+            Write-Host "NO LOG FILE FOUND"
+            Write-Host ""
+
+            Send-MailMessage `
+                -From "automation@coforge.com" `
+                -To $HREmail `
+                -Subject "Mailbox Creation Failed - $DisplayName" `
+                -Body "Mailbox creation failed. No CSV log generated." `
+                -SmtpServer "smtp.office365.com" `
+                -Port 587 `
+                -UseSsl `
+                -Credential $MailCred
+        }
+
+        # =========================================
+        # MOVE JSON
+        # =========================================
+
+        Move-Item `
+            -Path $File.FullName `
+            -Destination $ProcessedFolder `
+            -Force
+
+        Write-Host ""
+        Write-Host "JSON MOVED TO PROCESSED"
+        Write-Host ""
+
+    }
+
+    catch {
+
+        Write-Host ""
+        Write-Host "WATCHER ERROR"
+        Write-Host ""
+
+        Write-Host $_.Exception.Message
+    }
+}
+
+Write-Host ""
+Write-Host "WATCHER WILL CLOSE IN 10 SECONDS..."
+
+Start-Sleep -Seconds 10
+
+exit
 
 
 
