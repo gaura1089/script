@@ -1,0 +1,153 @@
+$BaseFolder = `
+"C:\Users\Gaurav.26\OneDrive - Coforge Limited\Documents\HR_Automation"
+
+$queueFolder = "$BaseFolder\Queue"
+
+$processedFolder = "$BaseFolder\Processed"
+
+$logFolder = "$BaseFolder\Logs"
+
+$createUserScript = `
+"$BaseFolder\Scripts\CreateUser.ps1"
+
+Write-Host ""
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host "HR AUTOMATION WATCHER STARTED" -ForegroundColor Green
+Write-Host "=============================================" -ForegroundColor Cyan
+
+# =========================================
+# CHECK FOLDERS
+# =========================================
+
+foreach ($folder in @(
+    $queueFolder,
+    $processedFolder,
+    $logFolder
+)) {
+
+    if (!(Test-Path $folder)) {
+
+        New-Item `
+            -ItemType Directory `
+            -Path $folder `
+            -Force | Out-Null
+    }
+}
+
+# =========================================
+# GET JSON FILES
+# =========================================
+
+$jsonFiles = Get-ChildItem `
+    -Path $queueFolder `
+    -Filter *.json `
+    -ErrorAction SilentlyContinue
+
+if (!$jsonFiles -or $jsonFiles.Count -eq 0) {
+
+    Write-Host ""
+    Write-Host "NO JSON FILE FOUND" -ForegroundColor Yellow
+
+    Start-Sleep 5
+
+    exit
+}
+
+# =========================================
+# PROCESS FILES
+# =========================================
+
+foreach ($jsonFile in $jsonFiles) {
+
+    try {
+
+        Write-Host ""
+        Write-Host "PROCESSING FILE : $($jsonFile.Name)" -ForegroundColor Cyan
+
+        $jsonData = Get-Content `
+            $jsonFile.FullName `
+            -Raw | ConvertFrom-Json
+
+        $FirstName   = $jsonData.FirstName
+        $LastName    = $jsonData.LastName
+        $DisplayName = $jsonData.DisplayName
+        $OU          = $jsonData.OU
+
+        # =====================================
+        # RUN CREATE USER
+        # =====================================
+
+        & $createUserScript `
+            -Mode "Single" `
+            -FirstName "$FirstName" `
+            -LastName "$LastName" `
+            -DisplayName "$DisplayName" `
+            -OU "$OU"
+
+        # =====================================
+        # WAIT FOR CSV
+        # =====================================
+
+        $SafeName = $DisplayName.Replace(" ","_")
+
+        $SuccessLog = "$logFolder\$SafeName.csv"
+
+        $ErrorLog = "$logFolder\$SafeName`_ERROR.csv"
+
+        $maxWait = 60
+        $elapsed = 0
+
+        while ($elapsed -lt $maxWait) {
+
+            if (
+                (Test-Path $SuccessLog) `
+                -or `
+                (Test-Path $ErrorLog)
+            ) {
+
+                Write-Host ""
+                Write-Host "CSV LOG DETECTED" -ForegroundColor Green
+
+                break
+            }
+
+            Start-Sleep 2
+
+            $elapsed += 2
+        }
+
+        # =====================================
+        # MOVE JSON
+        # =====================================
+
+        $destination = `
+        "$processedFolder\$($jsonFile.Name)"
+
+        Move-Item `
+            -Path $jsonFile.FullName `
+            -Destination $destination `
+            -Force
+
+        Write-Host ""
+        Write-Host "JSON MOVED TO PROCESSED" -ForegroundColor Green
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "WATCHER ERROR" -ForegroundColor Red
+
+        Write-Host $_.Exception.Message
+    }
+}
+
+Write-Host ""
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host "PROCESS COMPLETED" -ForegroundColor Green
+Write-Host "=============================================" -ForegroundColor Cyan
+
+Start-Sleep 5
+
+Get-Job | Stop-Job -ErrorAction SilentlyContinue
+Get-Job | Remove-Job -ErrorAction SilentlyContinue
+
+exit
